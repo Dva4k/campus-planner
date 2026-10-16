@@ -1,70 +1,51 @@
 import { router } from 'expo-router';
-import {
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
+import Screen from '../src/components/ui/Screen';
 import { useTheme } from '../src/context/ThemeContext';
+import { colors } from '../src/theme/colors';
+import { spacing } from '../src/theme/spacing';
 
 export default function SettingsScreen() {
   const { theme, toggleTheme } = useTheme();
-
+  const palette = colors[theme];
   const isDark = theme === 'dark';
 
   return (
-    <View
-      style={[
-        styles.container,
-        isDark && styles.darkContainer,
-      ]}
-    >
+    <Screen>
       <Pressable
         onPress={() => router.back()}
         style={styles.backButton}
+        accessibilityRole="button"
       >
-        <Text
-          style={[
-            styles.backText,
-            isDark && styles.darkText,
-          ]}
-        >
+        <Text style={[styles.backText, { color: palette.primary }]}>
           ← Назад
         </Text>
       </Pressable>
 
-      <Text
-        style={[
-          styles.title,
-          isDark && styles.darkText,
-        ]}
-      >
+      <Text style={[styles.title, { color: palette.text }]}>
         Настройки
       </Text>
 
       <View
         style={[
           styles.card,
-          isDark && styles.darkCard,
+          {
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
+          },
         ]}
       >
         <View style={styles.settingRow}>
           <View style={styles.textContainer}>
-            <Text
-              style={[
-                styles.settingTitle,
-                isDark && styles.darkText,
-              ]}
-            >
+            <Text style={[styles.settingTitle, { color: palette.text }]}>
               Тёмная тема
             </Text>
 
             <Text
               style={[
                 styles.description,
-                isDark && styles.darkSecondaryText,
+                { color: palette.secondaryText },
               ]}
             >
               Использовать тёмное оформление приложения
@@ -74,82 +55,52 @@ export default function SettingsScreen() {
           <Switch
             value={isDark}
             onValueChange={toggleTheme}
+            trackColor={{
+              false: palette.muted,
+              true: palette.primary,
+            }}
           />
         </View>
       </View>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#F5F7FB',
-  },
-
-  darkContainer: {
-    backgroundColor: '#111827',
-  },
-
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
-
   backText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#4F46E5',
   },
-
   title: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#172033',
   },
-
   card: {
-    marginTop: 24,
-    padding: 20,
+    marginTop: spacing.xl,
+    padding: spacing.xl,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
   },
-
-  darkCard: {
-    backgroundColor: '#1F2937',
-  },
-
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
   textContainer: {
     flex: 1,
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
-
   settingTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#172033',
   },
-
   description: {
-    marginTop: 5,
+    marginTop: spacing.xs,
     fontSize: 13,
     lineHeight: 19,
-    color: '#718096',
-  },
-
-  darkText: {
-    color: '#F9FAFB',
-  },
-
-  darkSecondaryText: {
-    color: '#9CA3AF',
   },
 });

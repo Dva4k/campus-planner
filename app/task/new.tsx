@@ -1,71 +1,40 @@
 import { router } from 'expo-router';
-import {
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import TaskForm from '../../src/components/TaskForm';
-import { useTasks } from '../../src/context/TaskContext';
+import Screen from '../../src/components/ui/Screen';
+import { useTasks } from '../../src/hooks/useTasks';
 import { useTheme } from '../../src/context/ThemeContext';
-import type { TaskPriority } from '../../src/types/task';
+import { colors } from '../../src/theme/colors';
+import { spacing } from '../../src/theme/spacing';
+import type { CreateTaskInput } from '../../src/types/task';
 
 export default function NewTaskScreen() {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const palette = colors[theme];
 
-  const { addTask } = useTasks();
+  const { createTask } = useTasks();
 
-  const handleAdd = (
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => {
-    addTask(title, subject, priority);
+  const handleAdd = (input: CreateTaskInput) => {
+    createTask(input);
     router.back();
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        isDark && styles.darkContainer,
-      ]}
-    >
-      <Text
-        style={[
-          styles.title,
-          isDark && styles.darkText,
-        ]}
-      >
+    <Screen>
+      <Text style={[styles.title, { color: palette.text }]}>
         Новая задача
       </Text>
 
-      <TaskForm onAdd={handleAdd} />
-    </View>
+      <TaskForm onSubmit={handleAdd} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#F5F7FB',
-  },
-
-  darkContainer: {
-    backgroundColor: '#111827',
-  },
-
   title: {
-    marginBottom: 20,
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#172033',
-  },
-
-  darkText: {
-    color: '#F9FAFB',
+    marginBottom: spacing.xl,
+    fontSize: 26,
+    fontWeight: '700',
   },
 });

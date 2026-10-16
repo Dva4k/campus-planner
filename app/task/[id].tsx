@@ -1,260 +1,165 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { useTasks } from '../../src/context/TaskContext';
+import Screen from '../../src/components/ui/Screen';
+import AppButton from '../../src/components/ui/AppButton';
+import EmptyState from '../../src/components/ui/EmptyState';
+import { useTasks } from '../../src/hooks/useTasks';
 import { useTheme } from '../../src/context/ThemeContext';
+import { colors } from '../../src/theme/colors';
+import { spacing } from '../../src/theme/spacing';
 
 export default function TaskDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const palette = colors[theme];
 
-  const { getTaskById } = useTasks();
-
+  const { getTaskById, toggleTaskStatus, removeTask } = useTasks();
   const task = getTaskById(id);
 
   if (!task) {
     return (
-      <View
-        style={[
-          styles.container,
-          isDark && styles.darkContainer,
-        ]}
-      >
-        <Text
-          style={[
-            styles.title,
-            isDark && styles.darkText,
-          ]}
-        >
-          Задача не найдена
-        </Text>
-
-        <Text
-          style={[
-            styles.message,
-            isDark && styles.darkSecondaryText,
-          ]}
-        >
-          Возможно, задача была удалена.
-        </Text>
-
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>Назад</Text>
-        </Pressable>
-      </View>
+      <Screen>
+        <EmptyState
+          icon="🔎"
+          title="Задача не найдена"
+          description="Возможно, задача была удалена."
+          actionTitle="Назад"
+          onAction={() => router.back()}
+        />
+      </Screen>
     );
   }
 
+  const isCompleted = task.status === 'completed';
+
+  const priorityText =
+    task.priority === 'high'
+      ? 'Высокий'
+      : task.priority === 'medium'
+        ? 'Средний'
+        : 'Низкий';
+
   return (
-    <View
-      style={[
-        styles.container,
-        isDark && styles.darkContainer,
-      ]}
-    >
-      <Pressable
+    <Screen>
+      <AppButton
+        title="← Назад"
+        variant="secondary"
         onPress={() => router.back()}
         style={styles.backButton}
-      >
-        <Text style={styles.backText}>← Назад</Text>
-      </Pressable>
+      />
 
-      <Text
-        style={[
-          styles.title,
-          isDark && styles.darkText,
-        ]}
-      >
+      <Text style={[styles.title, { color: palette.text }]}>
         {task.title}
       </Text>
 
       <View
         style={[
           styles.card,
-          isDark && styles.darkCard,
+          {
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
+          },
         ]}
       >
-        <Text
-          style={[
-            styles.label,
-            isDark && styles.darkSecondaryText,
-          ]}
-        >
+        <Text style={[styles.label, { color: palette.secondaryText }]}>
           Предмет
         </Text>
-
-        <Text
-          style={[
-            styles.value,
-            isDark && styles.darkText,
-          ]}
-        >
+        <Text style={[styles.value, { color: palette.text }]}>
           {task.subject}
         </Text>
 
-        <Text
-          style={[
-            styles.label,
-            isDark && styles.darkSecondaryText,
-          ]}
-        >
+        <Text style={[styles.label, { color: palette.secondaryText }]}>
           Приоритет
         </Text>
-
-        <Text
-          style={[
-            styles.value,
-            isDark && styles.darkText,
-          ]}
-        >
-          {task.priority === 'high'
-            ? 'Высокий'
-            : task.priority === 'medium'
-              ? 'Средний'
-              : 'Низкий'}
+        <Text style={[styles.value, { color: palette.text }]}>
+          {priorityText}
         </Text>
 
-        <Text
-          style={[
-            styles.label,
-            isDark && styles.darkSecondaryText,
-          ]}
-        >
+        <Text style={[styles.label, { color: palette.secondaryText }]}>
           Статус
         </Text>
-
-        <Text
-          style={[
-            styles.value,
-            isDark && styles.darkText,
-          ]}
-        >
-          {task.isCompleted ? 'Выполнено' : 'Активно'}
+        <Text style={[styles.value, { color: palette.text }]}>
+          {isCompleted ? 'Выполнено' : 'Активно'}
         </Text>
+
+        <Text style={[styles.label, { color: palette.secondaryText }]}>
+          Дата создания
+        </Text>
+        <Text style={[styles.value, { color: palette.text }]}>
+          {new Date(task.createdAt).toLocaleDateString()}
+        </Text>
+
+        {task.dueDate ? (
+          <>
+            <Text style={[styles.label, { color: palette.secondaryText }]}>
+              Срок выполнения
+            </Text>
+            <Text style={[styles.value, { color: palette.text }]}>
+              {new Date(task.dueDate).toLocaleDateString()}
+            </Text>
+          </>
+        ) : null}
       </View>
 
-      <Pressable
+      <AppButton
+        title="Редактировать"
         onPress={() =>
           router.push({
             pathname: '/task/edit/[id]',
             params: { id: task.id },
           })
         }
-        style={styles.editButton}
-      >
-        <Text style={styles.editButtonText}>
-          Редактировать
-        </Text>
-      </Pressable>
-    </View>
+        style={styles.actionButton}
+      />
+
+      <AppButton
+        title={isCompleted ? 'Вернуть в активные' : 'Отметить выполненной'}
+        variant="secondary"
+        onPress={() => toggleTaskStatus(task.id)}
+        style={styles.actionButton}
+      />
+
+      <AppButton
+        title="Удалить задачу"
+        onPress={() => {
+          removeTask(task.id);
+          router.back();
+        }}
+        style={styles.actionButton}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#F5F7FB',
-  },
-
-  darkContainer: {
-    backgroundColor: '#111827',
-  },
-
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 24,
+    marginBottom: spacing.md,
   },
-
-  backText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#4F46E5',
-  },
-
   title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#172033',
-  },
-
-  darkText: {
-    color: '#F9FAFB',
-  },
-
-  message: {
-    marginTop: 10,
-    fontSize: 15,
-    color: '#718096',
-  },
-
-  darkSecondaryText: {
-    color: '#9CA3AF',
-  },
-
-  card: {
-    marginTop: 24,
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-  },
-
-  darkCard: {
-    backgroundColor: '#1F2937',
-  },
-
-  label: {
-    marginTop: 14,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#718096',
-    textTransform: 'uppercase',
-  },
-
-  value: {
-    marginTop: 5,
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#172033',
-  },
-
-  button: {
-    alignSelf: 'flex-start',
-    marginTop: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#4F46E5',
-  },
-
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-
-  editButton: {
-    marginTop: 20,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#4F46E5',
-  },
-
-  editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    marginBottom: spacing.lg,
+    fontSize: 26,
     fontWeight: '700',
+  },
+  card: {
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderRadius: 12,
+  },
+  label: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    fontSize: 13,
+  },
+  value: {
+    marginBottom: spacing.sm,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  actionButton: {
+    marginBottom: spacing.sm,
   },
 });

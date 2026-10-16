@@ -1,33 +1,28 @@
+
 import {
   createContext,
-  useContext,
   useState,
   type ReactNode,
 } from 'react';
 
-import type { Task, TaskPriority } from '../types/task';
+import type {
+  Task,
+  CreateTaskInput,
+  UpdateTaskInput,
+} from '../types/task';
 
-interface TaskContextValue {
+interface TasksContextValue {
   tasks: Task[];
-  addTask: (
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => void;
-  toggleTask: (id: string) => void;
-  deleteTask: (id: string) => void;
-  updateTask: (
-    id: string,
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => void;
+  createTask: (input: CreateTaskInput) => void;
+  updateTask: (id: string, input: UpdateTaskInput) => void;
+  removeTask: (id: string) => void;
+  toggleTaskStatus: (id: string) => void;
   getTaskById: (id: string) => Task | undefined;
 }
 
-const TaskContext = createContext<TaskContextValue | undefined>(
-  undefined
-);
+export const TasksContext = createContext<
+  TasksContextValue | undefined
+>(undefined);
 
 const initialTasks: Task[] = [
   {
@@ -35,80 +30,79 @@ const initialTasks: Task[] = [
     title: 'Подготовить лабораторную работу №1',
     subject: 'React Native',
     priority: 'high',
-    isCompleted: false,
+    status: 'active',
+    createdAt: '2026-09-01T10:00:00.000Z',
   },
   {
     id: '2',
     title: 'Повторить TypeScript',
     subject: 'Программирование',
     priority: 'medium',
-    isCompleted: true,
+    status: 'completed',
+    createdAt: '2026-09-02T10:00:00.000Z',
   },
   {
     id: '3',
     title: 'Прочитать главу учебника',
     subject: 'Базы данных',
     priority: 'low',
-    isCompleted: false,
+    status: 'active',
+    createdAt: '2026-09-03T10:00:00.000Z',
   },
   {
     id: '4',
     title: 'Подготовиться к тесту',
     subject: 'Математика',
     priority: 'high',
-    isCompleted: false,
+    status: 'active',
+    createdAt: '2026-09-04T10:00:00.000Z',
   },
 ];
 
-export function TaskProvider({ children }: { children: ReactNode }) {
+export function TasksProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
-  const addTask = (
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => {
+  const createTask = (input: CreateTaskInput) => {
     const newTask: Task = {
+      ...input,
       id: String(Date.now()),
-      title,
-      subject,
-      priority,
-      isCompleted: false,
+      status: 'active',
+      createdAt: new Date().toISOString(),
     };
 
     setTasks((currentTasks) => [newTask, ...currentTasks]);
   };
 
-  const toggleTask = (id: string) => {
+  const updateTask = (id: string, input: UpdateTaskInput) => {
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
         task.id === id
-          ? { ...task, isCompleted: !task.isCompleted }
+          ? { ...task, ...input }
           : task
       )
     );
   };
 
-  const deleteTask = (id: string) => {
+  const removeTask = (id: string) => {
     setTasks((currentTasks) =>
       currentTasks.filter((task) => task.id !== id)
     );
   };
 
-  const updateTask = (
-    id: string,
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => {
+  const toggleTaskStatus = (id: string) => {
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
         task.id === id
           ? {
               ...task,
-              title,
-              subject,
-              priority,
+              status:
+                task.status === 'active'
+                  ? 'completed'
+                  : 'active',
             }
           : task
       )
@@ -120,27 +114,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <TaskContext.Provider
+    <TasksContext.Provider
       value={{
         tasks,
-        addTask,
-        toggleTask,
-        deleteTask,
+        createTask,
         updateTask,
+        removeTask,
+        toggleTaskStatus,
         getTaskById,
       }}
     >
       {children}
-    </TaskContext.Provider>
+    </TasksContext.Provider>
   );
-}
-
-export function useTasks() {
-  const context = useContext(TaskContext);
-
-  if (!context) {
-    throw new Error('useTasks must be used inside TaskProvider');
-  }
-
-  return context;
 }

@@ -1,3 +1,6 @@
+
+export type TaskStatus = 'active' | 'completed';
+
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Task {
@@ -5,5 +8,16 @@ export interface Task {
   title: string;
   subject: string;
   priority: TaskPriority;
-  isCompleted: boolean;
+  status: TaskStatus;
+  createdAt: string;
+  dueDate?: string;
 }
+
+export type CreateTaskInput = Omit<
+  Task,
+  'id' | 'createdAt' | 'status'
+>;
+
+export type UpdateTaskInput = Partial<CreateTaskInput> & {
+  status?: TaskStatus;
+};

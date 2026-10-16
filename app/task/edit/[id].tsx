@@ -1,145 +1,75 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import TaskForm from '../../../src/components/TaskForm';
-import { useTasks } from '../../../src/context/TaskContext';
+import Screen from '../../../src/components/ui/Screen';
+import AppButton from '../../../src/components/ui/AppButton';
+import EmptyState from '../../../src/components/ui/EmptyState';
+import { useTasks } from '../../../src/hooks/useTasks';
 import { useTheme } from '../../../src/context/ThemeContext';
-import type { TaskPriority } from '../../../src/types/task';
+import { colors } from '../../../src/theme/colors';
+import { spacing } from '../../../src/theme/spacing';
+import type { CreateTaskInput } from '../../../src/types/task';
 
 export default function EditTaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const palette = colors[theme];
 
   const { getTaskById, updateTask } = useTasks();
-
   const task = getTaskById(id);
 
   if (!task) {
     return (
-      <View
-        style={[
-          styles.container,
-          isDark && styles.darkContainer,
-        ]}
-      >
-        <Text
-          style={[
-            styles.title,
-            isDark && styles.darkText,
-          ]}
-        >
-          Задача не найдена
-        </Text>
-
-        <Text
-          style={[
-            styles.message,
-            isDark && styles.darkSecondaryText,
-          ]}
-        >
-          Возможно, задача была удалена.
-        </Text>
-
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>
-            Назад
-          </Text>
-        </Pressable>
-      </View>
+      <Screen>
+        <EmptyState
+          icon="🔎"
+          title="Задача не найдена"
+          description="Возможно, задача была удалена."
+          actionTitle="Назад"
+          onAction={() => router.back()}
+        />
+      </Screen>
     );
   }
 
-  const handleUpdate = (
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => {
-    updateTask(id, title, subject, priority);
+  const handleUpdate = (input: CreateTaskInput) => {
+    updateTask(id, input);
     router.back();
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        isDark && styles.darkContainer,
-      ]}
-    >
-      <Text
-        style={[
-          styles.title,
-          isDark && styles.darkText,
-        ]}
-      >
+    <Screen>
+      <Text style={[styles.title, { color: palette.text }]}>
         Редактировать задачу
       </Text>
 
       <TaskForm
-        onAdd={handleUpdate}
+        onSubmit={handleUpdate}
         initialTitle={task.title}
         initialSubject={task.subject}
         initialPriority={task.priority}
         submitText="Сохранить изменения"
       />
-    </View>
+
+      <AppButton
+        title="Отмена"
+        variant="secondary"
+        onPress={() => router.back()}
+        style={styles.cancelButton}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#F5F7FB',
-  },
-
-  darkContainer: {
-    backgroundColor: '#111827',
-  },
-
   title: {
-    marginBottom: 20,
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#172033',
+    marginBottom: spacing.xl,
+    fontSize: 26,
+    fontWeight: '700',
   },
-
-  darkText: {
-    color: '#F9FAFB',
-  },
-
-  message: {
-    marginTop: 10,
-    fontSize: 15,
-    color: '#718096',
-  },
-
-  darkSecondaryText: {
-    color: '#9CA3AF',
-  },
-
-  button: {
-    alignSelf: 'flex-start',
-    marginTop: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#4F46E5',
-  },
-
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+  cancelButton: {
+    marginTop: spacing.sm,
   },
 });

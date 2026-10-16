@@ -1,8 +1,16 @@
+
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import type { Task } from '../types/task';
 import { useTheme } from '../context/ThemeContext';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
 
 interface TaskCardProps {
   task: Task;
@@ -16,7 +24,8 @@ export default function TaskCard({
   onDelete,
 }: TaskCardProps) {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const palette = colors[theme];
+  const isCompleted = task.status === 'completed';
 
   const openDetails = () => {
     router.push({
@@ -25,89 +34,102 @@ export default function TaskCard({
     });
   };
 
+  const priorityText =
+    task.priority === 'high'
+      ? 'Высокий'
+      : task.priority === 'medium'
+        ? 'Средний'
+        : 'Низкий';
+
   return (
     <View
       style={[
         styles.card,
-        isDark && styles.darkCard,
-        task.isCompleted && styles.completedCard,
+        {
+          backgroundColor: palette.surface,
+          borderColor: palette.border,
+          opacity: isCompleted ? 0.75 : 1,
+        },
       ]}
     >
       <Pressable onPress={openDetails} style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text
-            style={[
-              styles.title,
-              isDark && styles.darkText,
-              task.isCompleted && styles.completedTitle,
-            ]}
-          >
-            {task.title}
-          </Text>
-        </View>
-
-        <View style={styles.priorityRow}>
-          <Text
-            style={[
-              styles.priorityLabel,
-              isDark && styles.darkSecondaryText,
-            ]}
-          >
-            Сложность:
-          </Text>
-
-          <View
-            style={[
-              styles.priorityDot,
-              task.priority === 'high' && styles.high,
-              task.priority === 'medium' && styles.medium,
-              task.priority === 'low' && styles.low,
-            ]}
-          />
-
-          <Text
-            style={[
-              styles.priorityText,
-              isDark && styles.darkSecondaryText,
-            ]}
-          >
-            {task.priority === 'high'
-              ? 'Высокая'
-              : task.priority === 'medium'
-                ? 'Средняя'
-                : 'Низкая'}
-          </Text>
-        </View>
+        <Text
+          style={[
+            styles.title,
+            {
+              color: palette.text,
+              textDecorationLine: isCompleted
+                ? 'line-through'
+                : 'none',
+            },
+          ]}
+        >
+          {task.title}
+        </Text>
 
         <Text
           style={[
             styles.subject,
-            isDark && styles.darkSecondaryText,
+            { color: palette.secondaryText },
           ]}
         >
           {task.subject}
         </Text>
 
-        <Text style={styles.status}>
-          {task.isCompleted ? '✓ Выполнено' : '● Активно'}
+        <Text
+          style={[
+            styles.priority,
+            { color: palette.primary },
+          ]}
+        >
+          Приоритет: {priorityText}
+        </Text>
+
+        <Text
+          style={[
+            styles.status,
+            { color: palette.secondaryText },
+          ]}
+        >
+          {isCompleted ? 'Выполнено' : 'Активно'}
         </Text>
       </Pressable>
 
       <View style={styles.actions}>
         <Pressable
           onPress={() => onToggle(task.id)}
-          style={styles.actionButton}
+          accessibilityRole="button"
+          style={[
+            styles.actionButton,
+            { backgroundColor: palette.primaryLight },
+          ]}
         >
-          <Text style={styles.toggleText}>
-            {task.isCompleted ? 'Вернуть' : 'Выполнить'}
+          <Text
+            style={[
+              styles.toggleText,
+              { color: palette.primary },
+            ]}
+          >
+            {isCompleted ? 'Вернуть' : 'Выполнить'}
           </Text>
         </Pressable>
 
         <Pressable
           onPress={() => onDelete(task.id)}
-          style={styles.actionButton}
+          accessibilityRole="button"
+          style={[
+            styles.actionButton,
+            { backgroundColor: palette.muted },
+          ]}
         >
-          <Text style={styles.delete}>Удалить</Text>
+          <Text
+            style={[
+              styles.deleteText,
+              { color: palette.danger },
+            ]}
+          >
+            Удалить
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -116,119 +138,42 @@ export default function TaskCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-
-  darkCard: {
-    backgroundColor: '#1F2937',
-  },
-
-  completedCard: {
-    opacity: 0.65,
-  },
-
   content: {
-    marginBottom: 14,
+    marginBottom: spacing.md,
   },
-
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
   title: {
-    flex: 1,
-    marginRight: 12,
+    marginBottom: spacing.sm - spacing.xs,
     fontSize: 17,
     fontWeight: '700',
-    color: '#172033',
   },
-
-  darkText: {
-    color: '#F9FAFB',
-  },
-
-  completedTitle: {
-    color: '#9AA3B2',
-    textDecorationLine: 'line-through',
-  },
-
   subject: {
-    marginTop: 7,
-    fontSize: 14,
-    color: '#718096',
+    marginBottom: spacing.sm - spacing.xs,
   },
-
-  darkSecondaryText: {
-    color: '#9CA3AF',
+  priority: {
+    marginBottom: spacing.xs,
+    fontWeight: '600',
   },
-
   status: {
-    marginTop: 10,
     fontSize: 13,
-    fontWeight: '600',
-    color: '#4F46E5',
   },
-
-  priorityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-
-  priorityLabel: {
-    marginRight: 6,
-    fontSize: 13,
-    color: '#718096',
-  },
-
-  priorityText: {
-    marginLeft: 6,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#5B6577',
-  },
-
-  priorityDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-
-  high: {
-    backgroundColor: '#EF4444',
-  },
-
-  medium: {
-    backgroundColor: '#F59E0B',
-  },
-
-  low: {
-    backgroundColor: '#22A06B',
-  },
-
   actions: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.sm,
   },
-
   actionButton: {
-    paddingVertical: 4,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
   },
-
   toggleText: {
-    fontSize: 13,
     fontWeight: '600',
-    color: '#4F46E5',
   },
-
-  delete: {
-    fontSize: 13,
+  deleteText: {
     fontWeight: '600',
-    color: '#EF4444',
   },
 });

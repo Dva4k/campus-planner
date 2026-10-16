@@ -4,19 +4,21 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
-import type { TaskPriority } from '../types/task';
+import type {
+  CreateTaskInput,
+  TaskPriority,
+} from '../types/task';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/spacing';
+import AppInput from './ui/AppInput';
+import AppButton from './ui/AppButton';
 
 interface TaskFormProps {
-  onAdd: (
-    title: string,
-    subject: string,
-    priority: TaskPriority
-  ) => void;
+  onSubmit: (input: CreateTaskInput) => void;
   initialTitle?: string;
   initialSubject?: string;
   initialPriority?: TaskPriority;
@@ -24,29 +26,43 @@ interface TaskFormProps {
 }
 
 export default function TaskForm({
-  onAdd,
+  onSubmit,
   initialTitle = '',
   initialSubject = '',
   initialPriority = 'medium',
   submitText = 'Добавить задачу',
 }: TaskFormProps) {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const palette = colors[theme];
 
   const [title, setTitle] = useState(initialTitle);
   const [subject, setSubject] = useState(initialSubject);
   const [priority, setPriority] =
     useState<TaskPriority>(initialPriority);
 
+  const [titleError, setTitleError] = useState('');
+  const [subjectError, setSubjectError] = useState('');
+
+  const isNewTask = submitText === 'Добавить задачу';
+
   const handleSubmit = () => {
-    if (!title.trim() || !subject.trim()) {
-      Alert.alert('Ошибка', 'Заполни название и предмет');
+    const cleanTitle = title.trim();
+    const cleanSubject = subject.trim();
+
+    setTitleError(cleanTitle ? '' : 'Введи название задачи');
+    setSubjectError(cleanSubject ? '' : 'Введи название предмета');
+
+    if (!cleanTitle || !cleanSubject) {
       return;
     }
 
-    onAdd(title.trim(), subject.trim(), priority);
+    onSubmit({
+      title: cleanTitle,
+      subject: cleanSubject,
+      priority,
+    });
 
-    if (submitText === 'Добавить задачу') {
+    if (isNewTask) {
       setTitle('');
       setSubject('');
       setPriority('medium');
@@ -55,196 +71,106 @@ export default function TaskForm({
 
   return (
     <View style={styles.container}>
-      <Text
-        style={[
-          styles.heading,
-          isDark && styles.darkText,
-        ]}
-      >
-        {submitText === 'Добавить задачу'
-          ? 'Новая задача'
-          : 'Редактирование'}
+      <Text style={[styles.heading, { color: palette.text }]}>
+        {isNewTask ? 'Новая задача' : 'Редактирование'}
       </Text>
 
-      <TextInput
+      <AppInput
+        label="Название задачи"
         value={title}
-        onChangeText={setTitle}
-        placeholder="Название задачи"
-        placeholderTextColor={isDark ? '#9CA3AF' : '#9AA3B2'}
-        style={[
-          styles.input,
-          isDark && styles.darkInput,
-          isDark && styles.darkText,
-        ]}
+        onChangeText={(value) => {
+          setTitle(value);
+          if (value.trim()) setTitleError('');
+        }}
+        placeholder="Введите название задачи"
+        error={titleError}
       />
 
-      <TextInput
+      <AppInput
+        label="Предмет"
         value={subject}
-        onChangeText={setSubject}
-        placeholder="Предмет"
-        placeholderTextColor={isDark ? '#9CA3AF' : '#9AA3B2'}
-        style={[
-          styles.input,
-          isDark && styles.darkInput,
-          isDark && styles.darkText,
-        ]}
+        onChangeText={(value) => {
+          setSubject(value);
+          if (value.trim()) setSubjectError('');
+        }}
+        placeholder="Введите предмет"
+        error={subjectError}
       />
 
-      <Text
-        style={[
-          styles.label,
-          isDark && styles.darkText,
-        ]}
-      >
+      <Text style={[styles.label, { color: palette.text }]}>
         Приоритет
       </Text>
 
       <View style={styles.priorityRow}>
-        <Pressable
-          onPress={() => setPriority('low')}
-          style={[
-            styles.priorityButton,
-            isDark && styles.darkPriorityButton,
-            priority === 'low' && styles.activePriority,
-          ]}
-        >
-          <Text
+        {([
+          ['low', 'Низкий'],
+          ['medium', 'Средний'],
+          ['high', 'Высокий'],
+        ] as const).map(([value, label]) => (
+          <Pressable
+            key={value}
+            onPress={() => setPriority(value)}
             style={[
-              styles.priorityText,
-              isDark && styles.darkText,
+              styles.priorityButton,
+              {
+                backgroundColor:
+                  priority === value
+                    ? palette.primaryLight
+                    : palette.surface,
+                borderColor:
+                  priority === value
+                    ? palette.primary
+                    : palette.border,
+              },
             ]}
           >
-            Низкий
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setPriority('medium')}
-          style={[
-            styles.priorityButton,
-            isDark && styles.darkPriorityButton,
-            priority === 'medium' && styles.activePriority,
-          ]}
-        >
-          <Text
-            style={[
-              styles.priorityText,
-              isDark && styles.darkText,
-            ]}
-          >
-            Средний
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setPriority('high')}
-          style={[
-            styles.priorityButton,
-            isDark && styles.darkPriorityButton,
-            priority === 'high' && styles.activePriority,
-          ]}
-        >
-          <Text
-            style={[
-              styles.priorityText,
-              isDark && styles.darkText,
-            ]}
-          >
-            Высокий
-          </Text>
-        </Pressable>
+            <Text
+              style={[
+                styles.priorityText,
+                { color: palette.text },
+              ]}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
-      <Pressable
+      <AppButton
+        title={submitText}
         onPress={handleSubmit}
-        style={styles.addButton}
-      >
-        <Text style={styles.addButtonText}>
-          {submitText}
-        </Text>
-      </Pressable>
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
-
   heading: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
     fontSize: 20,
     fontWeight: '700',
-    color: '#172033',
   },
-
-  darkText: {
-    color: '#F9FAFB',
-  },
-
-  input: {
-    marginBottom: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#D9DEEA',
-    borderRadius: 10,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
-  },
-
-  darkInput: {
-    borderColor: '#374151',
-    backgroundColor: '#1F2937',
-  },
-
   label: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     fontSize: 14,
     fontWeight: '600',
-    color: '#172033',
   },
-
   priorityRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-
   priorityButton: {
     flex: 1,
     alignItems: 'center',
-    padding: 10,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#D9DEEA',
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
   },
-
-  darkPriorityButton: {
-    borderColor: '#374151',
-    backgroundColor: '#1F2937',
-  },
-
-  activePriority: {
-    backgroundColor: '#E8E7FF',
-    borderColor: '#4F46E5',
-  },
-
   priorityText: {
-    color: '#172033',
-  },
-
-  addButton: {
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: '#4F46E5',
-  },
-
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
   },
 });
