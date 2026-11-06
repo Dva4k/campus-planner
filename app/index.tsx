@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -8,6 +9,11 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import TaskCard from '../src/components/TaskCard';
 import Screen from '../src/components/ui/Screen';
@@ -32,10 +38,40 @@ export default function App() {
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [searchText, setSearchText] = useState('');
 
-  const { tasks, toggleTaskStatus, removeTask } = useTasks();
+  const {
+  tasks,
+  toggleTaskStatus,
+  removeTask,
+  lastCreatedTaskId,
+  clearLastCreatedTaskId,
+} = useTasks();
 
   const totalTasks = tasks.length;
   const completedTasks = countTasksByStatus(tasks, 'completed');
+
+  // Рассчитываем прогресс от 0 до 1.
+  let progressValue;
+
+if (totalTasks === 0) {
+  progressValue = 0;
+} else {
+  progressValue = Math.min(1, completedTasks / totalTasks);
+}
+
+  // SharedValue хранит только визуальное значение прогресса.
+  const progress = useSharedValue(0);
+
+  // При изменении количества выполненных задач запускаем анимацию.
+  useEffect(() => {
+    progress.value = withTiming(progressValue, {
+      duration: 500,
+    });
+  }, [progressValue, progress]);
+
+  // Анимируем ширину заполненной части полосы.
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
 
   const statusFilteredTasks = filterTasksByStatus(tasks, filter);
   const filteredTasks = filterTasks(statusFilteredTasks, searchText);
@@ -63,6 +99,56 @@ export default function App() {
           variant="secondary"
           onPress={() => router.push('/settings')}
         />
+      </View>
+
+      {/* Блок прогресса */}
+      <View
+        style={[
+          styles.progressContainer,
+          {
+            backgroundColor: palette.surface,
+            borderColor: palette.border,
+          },
+        ]}
+      >
+        <View style={styles.progressHeader}>
+          <Text style={[styles.progressTitle, { color: palette.text }]}>
+            Прогресс выполнения
+          </Text>
+
+          <Text
+            style={[
+              styles.progressPercent,
+              { color: palette.primary },
+            ]}
+          >
+            {Math.round(progressValue * 100)}%
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.progressTrack,
+            { backgroundColor: palette.muted },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.progressFill,
+              { backgroundColor: palette.primary },
+              animatedProgressStyle,
+            ]}
+          />
+        </View>
+
+        <Text
+          style={[
+            styles.progressDescription,
+            { color: palette.secondaryText },
+          ]}
+        >
+          {completedTasks} из {totalTasks} задач выполнено
+        </Text>
       </View>
 
       <TextInput
@@ -127,7 +213,9 @@ export default function App() {
             task={item}
             onToggle={toggleTaskStatus}
             onDelete={removeTask}
-          />
+            isNew={item.id === lastCreatedTaskId}
+            onHighlightComplete={clearLastCreatedTaskId}
+           />
         )}
         ListEmptyComponent={
           <EmptyState
@@ -165,6 +253,39 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: spacing.xs,
+  },
+  progressContainer: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: spacing.lg,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  progressTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  progressPercent: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  progressDescription: {
+    fontSize: 12,
+    marginTop: spacing.sm,
   },
   searchInput: {
     marginBottom: spacing.md,

@@ -2,6 +2,7 @@
 import {
   createContext,
   useState,
+  useCallback,
   type ReactNode,
 } from 'react';
 
@@ -13,6 +14,8 @@ import type {
 
 interface TasksContextValue {
   tasks: Task[];
+  lastCreatedTaskId: string | null;
+  clearLastCreatedTaskId: () => void;
   createTask: (input: CreateTaskInput) => void;
   updateTask: (id: string, input: UpdateTaskInput) => void;
   removeTask: (id: string) => void;
@@ -66,6 +69,10 @@ export function TasksProvider({
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
+  // ID последней созданной задачи
+  const [lastCreatedTaskId, setLastCreatedTaskId] =
+    useState<string | null>(null);
+
   const createTask = (input: CreateTaskInput) => {
     const newTask: Task = {
       ...input,
@@ -75,7 +82,12 @@ export function TasksProvider({
     };
 
     setTasks((currentTasks) => [newTask, ...currentTasks]);
+    setLastCreatedTaskId(newTask.id);
   };
+
+ const clearLastCreatedTaskId = useCallback(() => {
+  setLastCreatedTaskId(null);
+}, []);
 
   const updateTask = (id: string, input: UpdateTaskInput) => {
     setTasks((currentTasks) =>
@@ -117,6 +129,8 @@ export function TasksProvider({
     <TasksContext.Provider
       value={{
         tasks,
+        lastCreatedTaskId,
+        clearLastCreatedTaskId,
         createTask,
         updateTask,
         removeTask,
