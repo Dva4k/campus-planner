@@ -16,6 +16,11 @@ interface TasksContextValue {
   tasks: Task[];
   lastCreatedTaskId: string | null;
   clearLastCreatedTaskId: () => void;
+
+  deletedTask: Task | null;
+  restoreDeletedTask: () => void;
+  clearDeletedTask: () => void;
+
   createTask: (input: CreateTaskInput) => void;
   updateTask: (id: string, input: UpdateTaskInput) => void;
   removeTask: (id: string) => void;
@@ -69,9 +74,11 @@ export function TasksProvider({
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
 
-  // ID последней созданной задачи
   const [lastCreatedTaskId, setLastCreatedTaskId] =
     useState<string | null>(null);
+
+  // Временно сохранённая удалённая задача
+  const [deletedTask, setDeletedTask] = useState<Task | null>(null);
 
   const createTask = (input: CreateTaskInput) => {
     const newTask: Task = {
@@ -85,9 +92,9 @@ export function TasksProvider({
     setLastCreatedTaskId(newTask.id);
   };
 
- const clearLastCreatedTaskId = useCallback(() => {
-  setLastCreatedTaskId(null);
-}, []);
+  const clearLastCreatedTaskId = useCallback(() => {
+    setLastCreatedTaskId(null);
+  }, []);
 
   const updateTask = (id: string, input: UpdateTaskInput) => {
     setTasks((currentTasks) =>
@@ -99,11 +106,35 @@ export function TasksProvider({
     );
   };
 
+  // Сохраняем задачу перед удалением
   const removeTask = (id: string) => {
+    const taskToDelete = tasks.find((task) => task.id === id);
+
+    if (!taskToDelete) return;
+
+    setDeletedTask(taskToDelete);
+
     setTasks((currentTasks) =>
       currentTasks.filter((task) => task.id !== id)
     );
   };
+
+  // Восстанавливаем последнюю удалённую задачу
+  const restoreDeletedTask = useCallback(() => {
+    if (!deletedTask) return;
+
+    setTasks((currentTasks) => [
+      deletedTask,
+      ...currentTasks,
+    ]);
+
+    setDeletedTask(null);
+  }, [deletedTask]);
+
+  // Очищаем сохранённую задачу после окончания времени отмены
+  const clearDeletedTask = useCallback(() => {
+    setDeletedTask(null);
+  }, []);
 
   const toggleTaskStatus = (id: string) => {
     setTasks((currentTasks) =>
@@ -131,6 +162,9 @@ export function TasksProvider({
         tasks,
         lastCreatedTaskId,
         clearLastCreatedTaskId,
+        deletedTask,
+        restoreDeletedTask,
+        clearDeletedTask,
         createTask,
         updateTask,
         removeTask,

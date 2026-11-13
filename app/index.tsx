@@ -9,7 +9,10 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+
 import Animated, {
+  FadeInDown,
+  FadeOutDown,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -37,41 +40,77 @@ export default function App() {
 
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [searchText, setSearchText] = useState('');
+  const [remainingSeconds, setRemainingSeconds] = useState(5);
 
   const {
-  tasks,
-  toggleTaskStatus,
-  removeTask,
-  lastCreatedTaskId,
-  clearLastCreatedTaskId,
-} = useTasks();
+    tasks,
+    toggleTaskStatus,
+    removeTask,
+    lastCreatedTaskId,
+    clearLastCreatedTaskId,
+    deletedTask,
+    restoreDeletedTask,
+    clearDeletedTask,
+  } = useTasks();
 
   const totalTasks = tasks.length;
   const completedTasks = countTasksByStatus(tasks, 'completed');
 
-  // Рассчитываем прогресс от 0 до 1.
-  let progressValue;
+  // Рассчитываем прогресс от 0 до 1
+  const progressValue =
+    totalTasks === 0
+      ? 0
+      : Math.min(1, completedTasks / totalTasks);
 
-if (totalTasks === 0) {
-  progressValue = 0;
-} else {
-  progressValue = Math.min(1, completedTasks / totalTasks);
-}
-
-  // SharedValue хранит только визуальное значение прогресса.
   const progress = useSharedValue(0);
 
-  // При изменении количества выполненных задач запускаем анимацию.
   useEffect(() => {
     progress.value = withTiming(progressValue, {
       duration: 500,
     });
   }, [progressValue, progress]);
 
-  // Анимируем ширину заполненной части полосы.
   const animatedProgressStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
   }));
+
+  // Анимация таймера отмены удаления
+  const undoProgress = useSharedValue(1);
+
+  const animatedUndoProgressStyle = useAnimatedStyle(() => ({
+    width: `${undoProgress.value * 100}%`,
+  }));
+
+  // Обратный отсчёт и автоматическое удаление уведомления через 5 секунд
+  useEffect(() => {
+    if (!deletedTask) {
+      setRemainingSeconds(5);
+      undoProgress.value = 1;
+      return;
+    }
+
+    setRemainingSeconds(5);
+    undoProgress.value = 1;
+
+    undoProgress.value = withTiming(0, {
+      duration: 5000,
+    });
+
+    const intervalId = setInterval(() => {
+      setRemainingSeconds((previous) =>
+        Math.max(0, previous - 1)
+      );
+    }, 1000);
+
+    const timeoutId = setTimeout(() => {
+      clearDeletedTask();
+    }, 5000);
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
+  }, [deletedTask?.id, clearDeletedTask, undoProgress]);
 
   const statusFilteredTasks = filterTasksByStatus(tasks, filter);
   const filteredTasks = filterTasks(statusFilteredTasks, searchText);
@@ -101,7 +140,7 @@ if (totalTasks === 0) {
         />
       </View>
 
-      {/* Блок прогресса */}
+      {/* Индикатор прогресса */}
       <View
         style={[
           styles.progressContainer,
@@ -151,6 +190,7 @@ if (totalTasks === 0) {
         </Text>
       </View>
 
+      {/* Поиск */}
       <TextInput
         value={searchText}
         onChangeText={setSearchText}
@@ -166,6 +206,7 @@ if (totalTasks === 0) {
         ]}
       />
 
+      {/* Фильтры */}
       <View style={styles.filterRow}>
         {(['all', 'active', 'completed'] as const).map((item) => (
           <Pressable
@@ -205,6 +246,7 @@ if (totalTasks === 0) {
         style={styles.addButton}
       />
 
+      {/* Список задач */}
       <FlatList
         data={filteredTasks}
         keyExtractor={(item) => item.id}
@@ -215,7 +257,7 @@ if (totalTasks === 0) {
             onDelete={removeTask}
             isNew={item.id === lastCreatedTaskId}
             onHighlightComplete={clearLastCreatedTaskId}
-           />
+          />
         )}
         ListEmptyComponent={
           <EmptyState
@@ -232,6 +274,65 @@ if (totalTasks === 0) {
         }
         contentContainerStyle={styles.listContent}
       />
+
+      {/* Нижнее уведомление в стиле Telegram */}
+      {deletedTask && (
+        <Animated.View
+          entering={FadeInDown.duration(250)}
+          exiting={FadeOutDown.duration(250)}
+          style={[
+            styles.undoContainer,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <View style={styles.undoMessageRow}>
+            <View style={styles.undoMessage}>
+              <Text style={[styles.undoTitle, { color: palette.text }]}>
+                Задача удалена
+              </Text>
+
+              <Text
+                style={[
+                  styles.undoDescription,
+                  { color: palette.secondaryText },
+                ]}
+              >
+                Отмена доступна ещё {remainingSeconds} сек.
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={restoreDeletedTask}
+              accessibilityRole="button"
+              hitSlop={10}
+              style={styles.undoButton}
+            >
+              <Text style={[styles.undoButtonText, { color: palette.primary }]}>
+                ОТМЕНИТЬ
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Полоска обратного отсчёта */}
+          <View
+            style={[
+              styles.undoTimerTrack,
+              { backgroundColor: palette.muted },
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.undoTimerFill,
+                { backgroundColor: palette.primary },
+                animatedUndoProgressStyle,
+              ]}
+            />
+          </View>
+        </Animated.View>
+      )}
     </Screen>
   );
 }
@@ -313,7 +414,53 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   listContent: {
-    paddingBottom: spacing.xl,
+    paddingBottom: 100,
     flexGrow: 1,
+  },
+  undoContainer: {
+    position: 'absolute',
+    bottom: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: 12,
+    elevation: 8,
+    zIndex: 100,
+  },
+  undoMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  undoMessage: {
+    flex: 1,
+  },
+  undoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  undoDescription: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  undoButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  undoButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  undoTimerTrack: {
+    height: 3,
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginTop: spacing.md,
+  },
+  undoTimerFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });
