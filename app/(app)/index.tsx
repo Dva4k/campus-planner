@@ -18,19 +18,19 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import TaskCard from '../src/components/TaskCard';
-import Screen from '../src/components/ui/Screen';
-import AppButton from '../src/components/ui/AppButton';
-import EmptyState from '../src/components/ui/EmptyState';
-import { useTasks } from '../src/hooks/useTasks';
-import { colors } from '../src/theme/colors';
-import { spacing } from '../src/theme/spacing';
-import { useTheme } from '../src/context/ThemeContext';
+import TaskCard from '../../src/components/TaskCard';
+import Screen from '../../src/components/ui/Screen';
+import AppButton from '../../src/components/ui/AppButton';
+import EmptyState from '../../src/components/ui/EmptyState';
+import { useTasks } from '../../src/hooks/useTasks';
+import { colors } from '../../src/theme/colors';
+import { spacing } from '../../src/theme/spacing';
+import { useTheme } from '../../src/context/ThemeContext';
 import {
   countTasksByStatus,
   filterTasks,
   filterTasksByStatus,
-} from '../src/utils/task';
+} from '../../src/utils/task';
 
 type TaskFilter = 'all' | 'active' | 'completed';
 

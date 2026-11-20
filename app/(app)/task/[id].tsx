@@ -1,13 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import Screen from '../../src/components/ui/Screen';
-import AppButton from '../../src/components/ui/AppButton';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { useTasks } from '../../src/hooks/useTasks';
-import { useTheme } from '../../src/context/ThemeContext';
-import { colors } from '../../src/theme/colors';
-import { spacing } from '../../src/theme/spacing';
+import Screen from '../../../src/components/ui/Screen';
+import AppButton from '../../../src/components/ui/AppButton';
+import EmptyState from '../../../src/components/ui/EmptyState';
+import { useTasks } from '../../../src/hooks/useTasks';
+import { useTheme } from '../../../src/context/ThemeContext';
+import { colors } from '../../../src/theme/colors';
+import { spacing } from '../../../src/theme/spacing';
 
 export default function TaskDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

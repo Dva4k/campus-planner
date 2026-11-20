@@ -1,13 +1,16 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
-import Screen from '../src/components/ui/Screen';
-import { useTheme } from '../src/context/ThemeContext';
-import { colors } from '../src/theme/colors';
-import { spacing } from '../src/theme/spacing';
+import Screen from '../../src/components/ui/Screen';
+import AppButton from '../../src/components/ui/AppButton';
+import { useAuth } from '../../src/auth/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext';
+import { colors } from '../../src/theme/colors';
+import { spacing } from '../../src/theme/spacing';
 
 export default function SettingsScreen() {
   const { theme, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
   const palette = colors[theme];
   const isDark = theme === 'dark';
 
@@ -62,6 +65,46 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
+
+      {user ? (
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+            },
+          ]}
+        >
+          <Text style={[styles.settingTitle, { color: palette.text }]}>
+            Аккаунт
+          </Text>
+          <Text style={[styles.description, { color: palette.secondaryText }]}>
+            {user.name} · {user.login}
+          </Text>
+        </View>
+      ) : null}
+
+      <AppButton
+        title="Выйти"
+        onPress={() => {
+          Alert.alert(
+            'Выйти из аккаунта?',
+            'Сохранённая сессия будет удалена с устройства.',
+            [
+              { text: 'Отмена', style: 'cancel' },
+              {
+                text: 'Выйти',
+                style: 'destructive',
+                onPress: () => {
+                  void signOut();
+                },
+              },
+            ],
+          );
+        }}
+        style={styles.logoutButton}
+      />
     </Screen>
   );
 }
@@ -84,6 +127,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderRadius: 16,
     borderWidth: 1,
+  },
+  logoutButton: {
+    marginTop: spacing.xl,
   },
   settingRow: {
     flexDirection: 'row',
