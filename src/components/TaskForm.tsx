@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -8,21 +7,25 @@ import {
 } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
+
 import type {
   CreateTaskInput,
   TaskPriority,
 } from '../types/task';
+
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
+
 import AppInput from './ui/AppInput';
 import AppButton from './ui/AppButton';
 
 interface TaskFormProps {
-  onSubmit: (input: CreateTaskInput) => void;
+  onSubmit: (input: CreateTaskInput) => Promise<void>;
   initialTitle?: string;
   initialSubject?: string;
   initialPriority?: TaskPriority;
   submitText?: string;
+  isSubmitting?: boolean;
 }
 
 export default function TaskForm({
@@ -31,6 +34,7 @@ export default function TaskForm({
   initialSubject = '',
   initialPriority = 'medium',
   submitText = 'Добавить задачу',
+  isSubmitting = false,
 }: TaskFormProps) {
   const { theme } = useTheme();
   const palette = colors[theme];
@@ -43,9 +47,9 @@ export default function TaskForm({
   const [titleError, setTitleError] = useState('');
   const [subjectError, setSubjectError] = useState('');
 
-  const isNewTask = submitText === 'Добавить задачу';
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
 
-  const handleSubmit = () => {
     const cleanTitle = title.trim();
     const cleanSubject = subject.trim();
 
@@ -56,23 +60,17 @@ export default function TaskForm({
       return;
     }
 
-    onSubmit({
+    await onSubmit({
       title: cleanTitle,
       subject: cleanSubject,
       priority,
     });
-
-    if (isNewTask) {
-      setTitle('');
-      setSubject('');
-      setPriority('medium');
-    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={[styles.heading, { color: palette.text }]}>
-        {isNewTask ? 'Новая задача' : 'Редактирование'}
+        {submitText === 'Добавить задачу' ? 'Новая задача' : 'Редактирование'}
       </Text>
 
       <AppInput
@@ -109,6 +107,7 @@ export default function TaskForm({
         ] as const).map(([value, label]) => (
           <Pressable
             key={value}
+            disabled={isSubmitting}
             onPress={() => setPriority(value)}
             style={[
               styles.priorityButton,
@@ -121,15 +120,11 @@ export default function TaskForm({
                   priority === value
                     ? palette.primary
                     : palette.border,
+                opacity: isSubmitting ? 0.5 : 1,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.priorityText,
-                { color: palette.text },
-              ]}
-            >
+            <Text style={[styles.priorityText, { color: palette.text }]}>
               {label}
             </Text>
           </Pressable>
@@ -138,7 +133,10 @@ export default function TaskForm({
 
       <AppButton
         title={submitText}
-        onPress={handleSubmit}
+        onPress={() => {
+          void handleSubmit();
+        }}
+        disabled={isSubmitting}
       />
     </View>
   );

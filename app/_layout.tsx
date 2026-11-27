@@ -1,13 +1,23 @@
-import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  Stack,
+  useRouter,
+  useSegments,
+} from 'expo-router';
+
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
+
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AuthProvider, useAuth } from '../src/auth/AuthContext';
-import { TasksProvider } from '../src/context/TaskContext';
 import { ThemeProvider } from '../src/context/ThemeContext';
 
 function RootNavigator() {
-  const { isLoading, isAuthenticated } = useAuth(); 
+  const { isLoading, isAuthenticated } = useAuth();
+
   const segments = useSegments();
   const router = useRouter();
 
@@ -38,16 +48,38 @@ function RootNavigator() {
   );
 }
 
+function AppProviders() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: 1,
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+          },
+          mutations: {
+            retry: false,
+          },
+        },
+      }),
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <TasksProvider>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
-        </TasksProvider>
-      </ThemeProvider>
+      <AppProviders />
     </GestureHandlerRootView>
   );
 }

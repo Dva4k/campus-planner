@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -7,12 +6,12 @@ import {
   Text,
   TextInput,
   View,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 
 import Animated, {
-  FadeInDown,
-  FadeOutDown,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -22,10 +21,17 @@ import TaskCard from '../../src/components/TaskCard';
 import Screen from '../../src/components/ui/Screen';
 import AppButton from '../../src/components/ui/AppButton';
 import EmptyState from '../../src/components/ui/EmptyState';
-import { useTasks } from '../../src/hooks/useTasks';
+
+import {
+  useTasksQuery,
+  useChangeTaskStatus,
+  useDeleteTask,
+} from '../../src/features/tasks/useTaskQuery';
+
 import { colors } from '../../src/theme/colors';
 import { spacing } from '../../src/theme/spacing';
 import { useTheme } from '../../src/context/ThemeContext';
+
 import {
   countTasksByStatus,
   filterTasks,
@@ -40,23 +46,16 @@ export default function App() {
 
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [searchText, setSearchText] = useState('');
-  const [remainingSeconds, setRemainingSeconds] = useState(5);
 
-  const {
-    tasks,
-    toggleTaskStatus,
-    removeTask,
-    lastCreatedTaskId,
-    clearLastCreatedTaskId,
-    deletedTask,
-    restoreDeletedTask,
-    clearDeletedTask,
-  } = useTasks();
+  const tasksQuery = useTasksQuery();
+  const updateMutation = useChangeTaskStatus();
+  const deleteMutation = useDeleteTask();
+
+  const tasks = tasksQuery.data ?? [];
 
   const totalTasks = tasks.length;
   const completedTasks = countTasksByStatus(tasks, 'completed');
 
-  // Рассчитываем прогресс от 0 до 1
   const progressValue =
     totalTasks === 0
       ? 0
@@ -74,46 +73,57 @@ export default function App() {
     width: `${progress.value * 100}%`,
   }));
 
-  // Анимация таймера отмены удаления
-  const undoProgress = useSharedValue(1);
-
-  const animatedUndoProgressStyle = useAnimatedStyle(() => ({
-    width: `${undoProgress.value * 100}%`,
-  }));
-
-  // Обратный отсчёт и автоматическое удаление уведомления через 5 секунд
-  useEffect(() => {
-    if (!deletedTask) {
-      setRemainingSeconds(5);
-      undoProgress.value = 1;
-      return;
-    }
-
-    setRemainingSeconds(5);
-    undoProgress.value = 1;
-
-    undoProgress.value = withTiming(0, {
-      duration: 5000,
-    });
-
-    const intervalId = setInterval(() => {
-      setRemainingSeconds((previous) =>
-        Math.max(0, previous - 1)
-      );
-    }, 1000);
-
-    const timeoutId = setTimeout(() => {
-      clearDeletedTask();
-    }, 5000);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-    };
-  }, [deletedTask?.id, clearDeletedTask, undoProgress]);
-
   const statusFilteredTasks = filterTasksByStatus(tasks, filter);
   const filteredTasks = filterTasks(statusFilteredTasks, searchText);
+
+  const handleToggle = (id: string) => {
+  if (updateMutation.isPending) return;
+
+  const task = tasks.find((item) => item.id === id);
+  if (!task) return;
+
+  updateMutation.mutate({
+    id,
+    status: task.status === 'active' ? 'completed' : 'active',
+  });
+};
+
+  const handleDelete = (id: string) => {
+  if (deleteMutation.isPending) return;
+
+  deleteMutation.mutate(id);
+};
+
+
+
+  if (tasksQuery.isPending) {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={palette.primary} />
+          <Text style={[styles.message, { color: palette.secondaryText }]}>
+            Загружаем задачи...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (tasksQuery.isError) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="⚠️"
+          title="Не удалось загрузить задачи"
+          description={tasksQuery.error.message}
+          actionTitle="Повторить"
+          onAction={() => {
+            void tasksQuery.refetch();
+          }}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -123,12 +133,7 @@ export default function App() {
             Планировщик задач
           </Text>
 
-          <Text
-            style={[
-              styles.subtitle,
-              { color: palette.secondaryText },
-            ]}
-          >
+          <Text style={[styles.subtitle, { color: palette.secondaryText }]}>
             Всего: {totalTasks} · Выполнено: {completedTasks}
           </Text>
         </View>
@@ -140,7 +145,6 @@ export default function App() {
         />
       </View>
 
-      {/* Индикатор прогресса */}
       <View
         style={[
           styles.progressContainer,
@@ -155,22 +159,12 @@ export default function App() {
             Прогресс выполнения
           </Text>
 
-          <Text
-            style={[
-              styles.progressPercent,
-              { color: palette.primary },
-            ]}
-          >
+          <Text style={[styles.progressPercent, { color: palette.primary }]}>
             {Math.round(progressValue * 100)}%
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.progressTrack,
-            { backgroundColor: palette.muted },
-          ]}
-        >
+        <View style={[styles.progressTrack, { backgroundColor: palette.muted }]}>
           <Animated.View
             style={[
               styles.progressFill,
@@ -180,17 +174,11 @@ export default function App() {
           />
         </View>
 
-        <Text
-          style={[
-            styles.progressDescription,
-            { color: palette.secondaryText },
-          ]}
-        >
+        <Text style={[styles.progressDescription, { color: palette.secondaryText }]}>
           {completedTasks} из {totalTasks} задач выполнено
         </Text>
       </View>
 
-      {/* Поиск */}
       <TextInput
         value={searchText}
         onChangeText={setSearchText}
@@ -206,7 +194,6 @@ export default function App() {
         ]}
       />
 
-      {/* Фильтры */}
       <View style={styles.filterRow}>
         {(['all', 'active', 'completed'] as const).map((item) => (
           <Pressable
@@ -216,18 +203,14 @@ export default function App() {
               styles.filterButton,
               {
                 backgroundColor:
-                  filter === item
-                    ? palette.primary
-                    : palette.muted,
+                  filter === item ? palette.primary : palette.muted,
               },
             ]}
           >
             <Text
               style={[
                 styles.filterText,
-                {
-                  color: filter === item ? '#FFFFFF' : palette.text,
-                },
+                { color: filter === item ? '#FFFFFF' : palette.text },
               ]}
             >
               {item === 'all'
@@ -246,98 +229,54 @@ export default function App() {
         style={styles.addButton}
       />
 
-      {/* Список задач */}
       <FlatList
         data={filteredTasks}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TaskCard
             task={item}
-            onToggle={toggleTaskStatus}
-            onDelete={removeTask}
-            isNew={item.id === lastCreatedTaskId}
-            onHighlightComplete={clearLastCreatedTaskId}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
           />
         )}
+        refreshControl={
+          <RefreshControl
+            refreshing={tasksQuery.isRefetching}
+            onRefresh={() => {
+              void tasksQuery.refetch();
+            }}
+            tintColor={palette.primary}
+          />
+        }
         ListEmptyComponent={
           <EmptyState
             icon="🔎"
-            title="Ничего не найдено"
+            title={tasks.length === 0 ? 'Задач пока нет' : 'Ничего не найдено'}
             description={
-              searchText.trim()
-                ? 'Попробуй изменить поисковый запрос.'
-                : 'В этой категории пока нет задач.'
+              tasks.length === 0
+                ? 'Создай первую учебную задачу.'
+                : 'Попробуй изменить поисковый запрос или фильтр.'
             }
-            actionTitle="Добавить задачу"
+            actionTitle={tasks.length === 0 ? 'Добавить задачу' : undefined}
             onAction={() => router.push('/task/new')}
           />
         }
         contentContainerStyle={styles.listContent}
       />
-
-      {/* Нижнее уведомление в стиле Telegram */}
-      {deletedTask && (
-        <Animated.View
-          entering={FadeInDown.duration(250)}
-          exiting={FadeOutDown.duration(250)}
-          style={[
-            styles.undoContainer,
-            {
-              backgroundColor: palette.surface,
-              borderColor: palette.border,
-            },
-          ]}
-        >
-          <View style={styles.undoMessageRow}>
-            <View style={styles.undoMessage}>
-              <Text style={[styles.undoTitle, { color: palette.text }]}>
-                Задача удалена
-              </Text>
-
-              <Text
-                style={[
-                  styles.undoDescription,
-                  { color: palette.secondaryText },
-                ]}
-              >
-                Отмена доступна ещё {remainingSeconds} сек.
-              </Text>
-            </View>
-
-            <Pressable
-              onPress={restoreDeletedTask}
-              accessibilityRole="button"
-              hitSlop={10}
-              style={styles.undoButton}
-            >
-              <Text style={[styles.undoButtonText, { color: palette.primary }]}>
-                ОТМЕНИТЬ
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Полоска обратного отсчёта */}
-          <View
-            style={[
-              styles.undoTimerTrack,
-              { backgroundColor: palette.muted },
-            ]}
-          >
-            <Animated.View
-              style={[
-                styles.undoTimerFill,
-                { backgroundColor: palette.primary },
-                animatedUndoProgressStyle,
-              ]}
-            />
-          </View>
-        </Animated.View>
-      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  message: {
+    marginTop: spacing.md,
+    fontSize: 15,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -407,60 +346,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   filterText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   addButton: {
     marginBottom: spacing.lg,
   },
   listContent: {
-    paddingBottom: 100,
-    flexGrow: 1,
-  },
-  undoContainer: {
-    position: 'absolute',
-    bottom: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderRadius: 12,
-    elevation: 8,
-    zIndex: 100,
-  },
-  undoMessageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  undoMessage: {
-    flex: 1,
-  },
-  undoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  undoDescription: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  undoButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  undoButtonText: {
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  undoTimerTrack: {
-    height: 3,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: spacing.md,
-  },
-  undoTimerFill: {
-    height: '100%',
-    borderRadius: 3,
+    paddingBottom: spacing.xl,
   },
 });

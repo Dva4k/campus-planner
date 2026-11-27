@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import TaskForm from '../../../src/components/TaskForm';
 import Screen from '../../../src/components/ui/Screen';
-import { useTasks } from '../../../src/hooks/useTasks';
+
+import { useCreateTask } from '../../../src/features/tasks/useTaskQuery';
+
 import { useTheme } from '../../../src/context/ThemeContext';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -13,11 +15,18 @@ export default function NewTaskScreen() {
   const { theme } = useTheme();
   const palette = colors[theme];
 
-  const { createTask } = useTasks();
+  const createMutation = useCreateTask();
 
-  const handleAdd = (input: CreateTaskInput) => {
-    createTask(input);
-    router.back();
+  const handleAdd = async (input: CreateTaskInput) => {
+    try {
+      await createMutation.mutateAsync(input);
+      router.back();
+    } catch (error) {
+      Alert.alert(
+        'Не удалось создать задачу',
+        error instanceof Error ? error.message : 'Попробуй ещё раз.',
+      );
+    }
   };
 
   return (
@@ -26,7 +35,12 @@ export default function NewTaskScreen() {
         Новая задача
       </Text>
 
-      <TaskForm onSubmit={handleAdd} />
+      <TaskForm
+        onSubmit={handleAdd}
+        submitText={
+          createMutation.isPending ? 'Сохранение...' : 'Добавить задачу'
+        }
+      />
     </Screen>
   );
 }

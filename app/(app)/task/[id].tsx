@@ -1,10 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import Screen from '../../../src/components/ui/Screen';
 import AppButton from '../../../src/components/ui/AppButton';
 import EmptyState from '../../../src/components/ui/EmptyState';
-import { useTasks } from '../../../src/hooks/useTasks';
+
+import {
+  useTaskQuery,
+  useUpdateTask,
+  useDeleteTask,
+} from '../../../src/features/tasks/useTaskQuery';
+
 import { useTheme } from '../../../src/context/ThemeContext';
 import { colors } from '../../../src/theme/colors';
 import { spacing } from '../../../src/theme/spacing';
@@ -15,8 +27,41 @@ export default function TaskDetailsScreen() {
   const { theme } = useTheme();
   const palette = colors[theme];
 
-  const { getTaskById, toggleTaskStatus, removeTask } = useTasks();
-  const task = getTaskById(id);
+  const taskQuery = useTaskQuery(id);
+  const updateMutation = useUpdateTask(id);
+  const deleteMutation = useDeleteTask();
+
+  if (taskQuery.isPending) {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={palette.primary} />
+          <Text style={{ color: palette.secondaryText }}>
+            Загружаем задачу...
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (taskQuery.isError) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="⚠️"
+          title="Не удалось загрузить задачу"
+          description={taskQuery.error.message}
+          actionTitle="Повторить"
+          onAction={() => {
+            void taskQuery.refetch();
+          }}
+        />
+        <AppButton title="Назад" variant="secondary" onPress={() => router.back()} />
+      </Screen>
+    );
+  }
+
+  const task = taskQuery.data;
 
   if (!task) {
     return (
@@ -40,6 +85,25 @@ export default function TaskDetailsScreen() {
       : task.priority === 'medium'
         ? 'Средний'
         : 'Низкий';
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Удалить задачу?',
+      `Вы действительно хотите удалить «${task.title}»?`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: () => {
+            deleteMutation.mutate(task.id, {
+              onSuccess: () => router.back(),
+            });
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Screen>
@@ -88,7 +152,7 @@ export default function TaskDetailsScreen() {
           Дата создания
         </Text>
         <Text style={[styles.value, { color: palette.text }]}>
-          {new Date(task.createdAt).toLocaleDateString()}
+          {new Date(task.createdAt).toLocaleDateString('ru-RU')}
         </Text>
 
         {task.dueDate ? (
@@ -97,7 +161,7 @@ export default function TaskDetailsScreen() {
               Срок выполнения
             </Text>
             <Text style={[styles.value, { color: palette.text }]}>
-              {new Date(task.dueDate).toLocaleDateString()}
+              {new Date(task.dueDate).toLocaleDateString('ru-RU')}
             </Text>
           </>
         ) : null}
@@ -115,18 +179,21 @@ export default function TaskDetailsScreen() {
       />
 
       <AppButton
-        title={isCompleted ? 'Вернуть в активные' : 'Отметить выполненной'}
+        title={updateMutation.isPending ? 'Обновление...' : isCompleted ? 'Вернуть в активные' : 'Отметить выполненной'}
         variant="secondary"
-        onPress={() => toggleTaskStatus(task.id)}
+        disabled={updateMutation.isPending}
+        onPress={() =>
+          updateMutation.mutate({
+            status: isCompleted ? 'active' : 'completed',
+          })
+        }
         style={styles.actionButton}
       />
 
       <AppButton
-        title="Удалить задачу"
-        onPress={() => {
-          removeTask(task.id);
-          router.back();
-        }}
+        title={deleteMutation.isPending ? 'Удаление...' : 'Удалить задачу'}
+        disabled={deleteMutation.isPending}
+        onPress={handleDelete}
         style={styles.actionButton}
       />
     </Screen>
@@ -134,6 +201,12 @@ export default function TaskDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: spacing.md,

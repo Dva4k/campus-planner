@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import {
   AuthApiError,
   getCurrentUser,
@@ -15,6 +17,9 @@ import {
   type LoginCredentials,
   type User,
 } from '../api/auth';
+
+import { setUnauthorizedHandler } from '../api/client';
+
 import {
   readToken,
   removeToken,
@@ -35,11 +40,32 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
+
+  const signOut = useCallback(async () => {
+    try {
+      await removeToken();
+    } finally {
+      setUser(null);
+      setAccessToken(null);
+      setAuthError(null);
+      queryClient.clear();
+    }
+  }, [queryClient]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(signOut);
+
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, [signOut]);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,9 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setUser(null);
             setAccessToken(null);
+            queryClient.clear();
           }
         } else if (isMounted) {
-          // Сеть или ошибка сервера не доказывают, что токен недействителен.
           setAuthError(
             error instanceof Error
               ? error.message
@@ -88,32 +114,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    restoreSession();
+    void restoreSession();
 
     return () => {
       isMounted = false;
     };
-  }, [restoreAttempt]);
+  }, [restoreAttempt, queryClient]);
 
   const signIn = useCallback(async (credentials: LoginCredentials) => {
     setAuthError(null);
 
     const response = await signInRequest(credentials);
 
-    // Сначала сохраняем токен безопасно, затем меняем состояние приложения.
     await saveToken(response.accessToken);
+
     setAccessToken(response.accessToken);
     setUser(response.user);
-  }, []);
-
-  const signOut = useCallback(async () => {
-    try {
-      await removeToken();
-    } finally {
-      setUser(null);
-      setAccessToken(null);
-      setAuthError(null);
-    }
   }, []);
 
   const retrySession = useCallback(() => {
