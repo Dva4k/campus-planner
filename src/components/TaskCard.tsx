@@ -391,7 +391,7 @@ export default function TaskCard({
               </Pressable>
 
               <Pressable
-                onPress={() => onDelete(task.id)}
+                onPress={confirmDelete}
                 accessibilityRole="button"
                 style={[
                   styles.actionButton,

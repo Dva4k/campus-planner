@@ -36,6 +36,7 @@ import {
   countTasksByStatus,
   filterTasks,
   filterTasksByStatus,
+  sortTasksByPriority,
 } from '../../src/utils/task';
 
 type TaskFilter = 'all' | 'active' | 'completed';
@@ -46,6 +47,7 @@ export default function App() {
 
   const [filter, setFilter] = useState<TaskFilter>('all');
   const [searchText, setSearchText] = useState('');
+  const [sortByPriority, setSortByPriority] = useState(false); 
 
   const tasksQuery = useTasksQuery();
   const updateMutation = useChangeTaskStatus();
@@ -74,7 +76,11 @@ export default function App() {
   }));
 
   const statusFilteredTasks = filterTasksByStatus(tasks, filter);
-  const filteredTasks = filterTasks(statusFilteredTasks, searchText);
+const filteredTasks = filterTasks(statusFilteredTasks, searchText);
+
+const displayedTasks = sortByPriority
+  ? sortTasksByPriority(filteredTasks)
+  : filteredTasks;
 
   const handleToggle = (id: string) => {
   if (updateMutation.isPending) return;
@@ -222,6 +228,34 @@ export default function App() {
           </Pressable>
         ))}
       </View>
+      
+          <Pressable
+            onPress={() => setSortByPriority((previous) => !previous)}
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor: sortByPriority
+                  ? palette.primaryLight
+                  : palette.muted,
+                borderColor: palette.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.sortButtonText,
+                {
+                  color: sortByPriority
+                    ? palette.primary
+                    : palette.text,
+                },
+              ]}
+            >
+              {sortByPriority
+                ? '✓ Сортировка по приоритету'
+                : 'Сортировать по приоритету'}
+            </Text>
+          </Pressable>
 
       <AppButton
         title="+ Новая задача"
@@ -230,7 +264,7 @@ export default function App() {
       />
 
       <FlatList
-        data={filteredTasks}
+        data={displayedTasks}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TaskCard
@@ -355,4 +389,16 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: spacing.xl,
   },
+  sortButton: {
+  padding: spacing.md,
+  borderRadius: 10,
+  borderWidth: 1,
+  alignItems: 'center',
+  marginBottom: spacing.lg,
+},
+
+sortButtonText: {
+  fontSize: 14,
+  fontWeight: '600',
+},
 });
